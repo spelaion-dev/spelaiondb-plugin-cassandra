@@ -1,0 +1,39 @@
+# The servers this plugin's tests run against.
+#
+# Apache Cassandra 5, with password logins (user `cassandra`, password `cassandra`, the image's
+# own), published on 127.0.0.1:19042 (SPELAION_TEST_CASSANDRA).
+#
+# ScyllaDB 6.2, which speaks Cassandra's protocol, reached through this plugin as a kind of
+# Cassandra connection (SpelaionDB's ADR-056), on 127.0.0.1:19043 (SPELAION_TEST_SCYLLA), with
+# no login. One CPU and a little memory, enough for tests.
+name: spelaiondb-plugin-cassandra-test
+
+services:
+  cassandra:
+    image: cassandra:5
+    environment:
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 128M
+    command: >
+      bash -c "sed -i 's/^authenticator:.*/authenticator: PasswordAuthenticator/' /etc/cassandra/cassandra.yaml
+      && exec docker-entrypoint.sh cassandra -f"
+    ports:
+      - "127.0.0.1:19042:9042"
+    healthcheck:
+      test: ["CMD", "cqlsh", "-u", "cassandra", "-p", "cassandra", "-e", "DESCRIBE KEYSPACES"]
+      interval: 5s
+      timeout: 10s
+      retries: 60
+      start_period: 30s
+
+  scylla:
+    image: scylladb/scylla:6.2
+    command: ["--smp", "1", "--memory", "750M", "--overprovisioned", "1", "--developer-mode", "1"]
+    ports:
+      - "127.0.0.1:19043:9042"
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "DESCRIBE KEYSPACES"]
+      interval: 5s
+      timeout: 10s
+      retries: 60
+      start_period: 30s
